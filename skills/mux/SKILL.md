@@ -43,7 +43,7 @@ Key economics: subagents run in their own context and bill at their own model's 
 ## Cost reporting
 
 - Before: for sizable multiplexed tasks (3+ delegations or one large one), the orchestrator states a one-line $ estimate up front (tiers, rough range, Fable-credits share). It is an estimate; actuals come from the hook below.
-- After: a Stop hook parses the session and subagent transcripts, prices every turn at API list rates (cache-aware), and prints one line comparing actual spend to the un-muxed all-main-model cost, split into Fable extra-usage credits vs Max-plan quota. It stays silent until accumulated savings since the last report cross the threshold, so small turns don't spam.
+- After: a Stop hook parses the session and subagent transcripts, prices every turn at API list rates (cache-aware), and prints one line comparing actual spend (broken down by model, Fable tagged as extra-usage credits) to the un-muxed all-main-model cost. It stays silent until accumulated savings since the last report cross the threshold, so small turns don't spam. A SessionStart baseline keeps resumed sessions from billing their whole history to the first report.
 - Not counted: muxer:codex / muxer:gemini work (external billing, invisible to transcripts) and the token overhead the un-muxed counterfactual would not have had (subagents re-read context). Figures are estimates at list prices, marked with `~`.
 
 ## Tuning

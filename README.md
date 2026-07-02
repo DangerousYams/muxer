@@ -52,11 +52,13 @@ You get an estimate before and a receipt after.
 
 The estimate comes from the orchestrator itself. The policy tells it to open any sizable multiplexed task with a single line covering which tiers will do what, a rough dollar range at list prices, and how much of that is Fable credits. It's a guess, labeled as one. No hook can know a task's size before the work runs.
 
-The receipt is measured. A `Stop` hook parses the session transcript plus every subagent transcript, dedupes the rows Claude Code writes repeatedly while streaming, and prices each turn at API list rates, cache-aware (cache reads at 0.1x the input rate, 5-minute cache writes at 1.25x, 1-hour writes at 2x). It then prints one line comparing actual spend, split into Fable extra-usage credits and Max-plan quota, against the counterfactual where every token ran on the session's main model. It stays quiet until the savings accumulated since its last report cross `MUXER_REPORT_MIN_USD` (default $0.25), so small turns never spam you.
+The receipt is measured. A `Stop` hook parses the session transcript plus every subagent transcript, dedupes the rows Claude Code writes repeatedly while streaming, and prices each turn at API list rates, cache-aware (cache reads at 0.1x the input rate, 5-minute cache writes at 1.25x, 1-hour writes at 2x). It then prints one line breaking actual spend down by model, with the Fable share tagged as extra-usage credits, against the counterfactual where every token ran on the session's main model. It stays quiet until the savings accumulated since its last report cross `MUXER_REPORT_MIN_USD` (default $0.25), so small turns never spam you.
 
 ```
-muxer: this stretch cost ~$1.25 (~$0.00 Fable credits, ~$1.25 Max-quota) vs ~$3.95 un-muxed all-Fable. Saved ~$2.70 (68%).
+muxer: this stretch cost ~$1.25 (opus $0.58 + haiku $0.68) vs ~$3.95 all-opus. Saved ~$2.70 (68%).
 ```
+
+A SessionStart hook records the transcript's running totals as a baseline whenever a session starts, resumes, or clears. Without that, the first report of a resumed session would bill the transcript's entire history to "this stretch", and a long-lived session can carry hundreds of dollars of it. If the baseline is ever missing, the first Stop sets it silently instead of reporting.
 
 Two blind spots worth knowing about. Work done through `muxer:codex` or `muxer:gemini` bills externally and never appears in the transcripts, so it's invisible here. And the un-muxed counterfactual is approximate, because a single-model run wouldn't have paid for subagents re-reading context. Read every figure as a rough number at list prices, not an invoice.
 
