@@ -1,0 +1,14 @@
+{
+  "name": "muxer-local",
+  "owner": {
+    "name": "Shalin Shodhan",
+    "email": "shalin@masalagames.com"
+  },
+  "plugins": [
+    {
+      "name": "muxer",
+      "source": "./",
+      "description": "Model multiplexer: route subagent work to the cheapest model that can do the job."
+    }
+  ]
+}
