@@ -1,18 +1,26 @@
 # muxer
 
-A model multiplexer for Claude Code, packaged as a plugin. Keep an expensive orchestrator model (Fable) for what it's uniquely good at — planning, creative direction, running long jobs to completion — while routing the bulk of the token spend to cheaper models (Opus, Sonnet, Haiku) and to external models via the OpenAI Codex and Google Gemini CLIs.
+A Claude Code plugin that lets an expensive model run the session while cheaper models do most of the actual work.
 
-## Why this shape
+I built this because Fable is the model I want planning my work and judging the results, but on a Max plan it bills as extra usage credits with no ceiling. Meanwhile most of what happens in a coding session (grepping through files, writing boilerplate, reading logs) doesn't need the priciest model in the catalog. muxer keeps Fable in the director's chair and pushes the typing down to Opus, Sonnet, and Haiku, or out to OpenAI Codex and Google Gemini through their CLIs.
 
-Claude Code decides "which model handles this subtask" at delegation time, in the orchestrator's head. The plugin pulls on all three levers that influence that decision:
+## How it works
 
-1. **Model-pinned agents** (`agents/*.md`) — each delegate has a `model:` in its frontmatter, so its work bills at that model's rate regardless of what the main session runs on. This is the multiplexing mechanism.
-2. **SessionStart hook** (`scripts/session-policy.sh`) — injects a short routing policy into every session so the orchestrator knows to delegate instead of doing. The policy adapts: Fable sessions get "you are premium-priced, keep the main loop lean"; cheaper sessions get an escalation path to Fable via `muxer:oracle`.
-3. **PreToolUse guard** (`scripts/guard-model.sh`) — built-in subagents (general-purpose, Explore, Plan) inherit the *main* model when spawned without a model override. On a Fable session that silently bills exploration at premium rates. The guard injects `opus` (erring toward quality) whenever no model was explicitly chosen.
+Claude Code picks a model for a subtask at the moment the orchestrator spawns it. muxer leans on that decision from three directions.
 
-## Prime rule: quality first
+The agents in `agents/*.md` each carry a `model:` line in their frontmatter, so the scout always runs on Haiku and the builder always runs on Opus no matter what the main session runs on. This is where the actual multiplexing happens, and it's a hard guarantee rather than a suggestion.
 
-Cost optimization happens *within* a quality constraint, never instead of it. The policy the plugin injects makes this explicit: route each task to the cheapest model that can do it to full quality, route up a tier when unsure, and never accept a below-bar result because escalating costs more. The delegation contract bans handing off big meaty tasks — work is decomposed into scoped briefs with acceptance criteria, repetitive work follows a verified exemplar built at a strong tier, everything passes through the reviewer, and a task that fails review twice at one tier is redone a tier up. The delegates enforce this from their side too: builder refuses under-scoped briefs, writer refuses work that needs judgment beyond text, and reviewer classifies failures as specification vs capability to drive escalation.
+A SessionStart hook (`scripts/session-policy.sh`) injects a short routing policy into every session so the orchestrator knows to delegate instead of doing everything itself. The policy reads the session model and adapts. On Fable it says: you're premium-priced, keep the main loop lean. On cheaper models it adds an escalation path up to Fable through `muxer:oracle`.
+
+The third piece is a PreToolUse guard (`scripts/guard-model.sh`). Claude Code's built-in subagents (general-purpose, Explore, Plan) inherit the main session's model when spawned without an override, which on a Fable session means your file exploration quietly bills at premium rates. The guard catches those spawns and pins them to `opus` unless a model was chosen explicitly.
+
+## Quality first
+
+The injected policy is blunt about priorities: pick the cheapest model that can do the task to full quality, and when in doubt go up a tier, not down. Cheap work that comes back below the bar defeats the whole point, since redoing it costs more than the tokens saved.
+
+So big meaty tasks never get handed off whole. The orchestrator decomposes them into scoped briefs with acceptance criteria, and for repetitive work like a port or migration, one exemplar gets built at a strong tier and verified before anything fans out. Completed work goes through the reviewer, and a task that fails review twice at one tier gets redone a tier up with a fresh brief. Taste-critical work (UI, CSS, game feel) never goes below Opus regardless of cost hints, and the verifier is never a cheaper model than the builder it's judging. I learned both of those rules the hard way, by shipping a visually broken game port that a cheap model built and an equally cheap model approved.
+
+The delegates hold up their end too. The builder refuses briefs that are under-scoped rather than winging them, and the writer bounces anything that turns out to need real judgment. The reviewer labels each failure as either a spec problem or a capability problem, so the orchestrator knows whether to fix the brief or change the model.
 
 ## The delegates
 
@@ -26,34 +34,31 @@ Cost optimization happens *within* a quality constraint, never instead of it. Th
 | `muxer:codex` | external | Dispatches to OpenAI Codex CLI (`codex exec`). Zero Anthropic tokens. |
 | `muxer:gemini` | external | Dispatches to Google Gemini CLI (`gemini -p`). Zero Anthropic tokens. |
 
-## The economics
+## Where the money goes
 
-API list prices per 1M tokens (in/out): Fable $10/$50, Opus $5/$25, Sonnet $3/$15, Haiku $1/$5. On a Max plan where Fable bills as extra usage credits, every token moved off Fable and onto Opus/Sonnet/Haiku moves spend from open-ended credits to plan quota, and every token moved to Codex/Gemini leaves the Anthropic bill entirely.
+API list prices per 1M tokens (in/out): Fable $10/$50, Opus $5/$25, Sonnet $3/$15, Haiku $1/$5. On a Max plan, Fable bills as extra usage credits while the rest draw from plan quota, so every token moved off Fable turns open-ended spend into quota spend. Tokens moved to Codex or Gemini leave the Anthropic bill entirely.
 
-Subagents run in their own context windows and bill at their own model's rates. The orchestrator pays its rate only for what flows through the main loop: its planning, the delegate reports it reads, its replies to you. Two consequences:
+Subagents run in their own context windows and bill at their own model's rate. The orchestrator pays its premium rate only for what passes through the main loop: its plans, the reports it reads back, its replies to you. Which is why delegating the work is only half the job. The orchestrator also has to stop reading raw material, and that's what the scout is for, turning 50k tokens of logs into a 300-word report before anything touches the Fable loop. Same reasoning behind the reviewer: it reads the diffs so the main loop doesn't re-read them at premium rates.
 
-- Delegating isn't enough — the orchestrator must also *stop reading raw material*. Scout exists so 50k tokens of logs become a 300-word report before touching the Fable loop.
-- Verification should also be delegated (`muxer:reviewer`), or the orchestrator re-reads every diff at premium rates.
+## Two ways to run it
 
-## Two modes
+Mode A is what the plugin is tuned for. Run the session on Fable (`/model fable`) and let it orchestrate. You keep Fable's planning, its visual taste, and its habit of running a job until it's actually done, while premium billing applies only to the lean main loop.
 
-- **Mode A — Fable orchestrates** (`/model fable`): preserves Fable's planning, visual taste, and run-until-done persistence. Premium billing applies only to the lean main loop. This is the default this plugin is tuned for.
-- **Mode B — Opus orchestrates** (`/model opus`): maximum savings. Fable is consulted only through `muxer:oracle` for the moments that need it (creative direction, hard design calls). Costs roughly half per main-loop token and stays on plan quota.
+Mode B is for maximum savings. Run the session on Opus (`/model opus`) and consult Fable only through `muxer:oracle` when something genuinely needs it, like creative direction or a hard design call. Main-loop tokens cost roughly half and stay on plan quota.
 
 ## Cost reporting
 
-Two halves, one before and one after:
+You get an estimate before and a receipt after.
 
-- **Before (estimate, model-driven):** the injected policy tells the orchestrator to open any sizable multiplexed task with a one-line cost estimate: which tiers do what, a rough $ range at list prices, and the Fable-credits share. No hook can know a task's size in advance, so this half is advisory and approximate by nature.
-- **After (measured, hook-driven):** a `Stop` hook parses the session transcript plus every subagent transcript, dedupes streamed rows, prices each turn at API list rates (cache reads at 0.1x, 5m cache writes at 1.25x, 1h at 2x input rate), and prints one line: actual spend (split into Fable extra-usage credits vs Max-plan quota) against the counterfactual where every token ran on the session's main model. It stays quiet until savings accumulated since the last report cross `MUXER_REPORT_MIN_USD` (default $0.25), so small turns never spam.
+The estimate comes from the orchestrator itself. The policy tells it to open any sizable multiplexed task with a single line covering which tiers will do what, a rough dollar range at list prices, and how much of that is Fable credits. It's a guess, labeled as one. No hook can know a task's size before the work runs.
 
-Example output:
+The receipt is measured. A `Stop` hook parses the session transcript plus every subagent transcript, dedupes the rows Claude Code writes repeatedly while streaming, and prices each turn at API list rates, cache-aware (cache reads at 0.1x the input rate, 5-minute cache writes at 1.25x, 1-hour writes at 2x). It then prints one line comparing actual spend, split into Fable extra-usage credits and Max-plan quota, against the counterfactual where every token ran on the session's main model. It stays quiet until the savings accumulated since its last report cross `MUXER_REPORT_MIN_USD` (default $0.25), so small turns never spam you.
 
 ```
 muxer: this stretch cost ~$1.25 (~$0.00 Fable credits, ~$1.25 Max-quota) vs ~$3.95 un-muxed all-Fable. Saved ~$2.70 (68%).
 ```
 
-What it can't see: work done through `muxer:codex` / `muxer:gemini` (bills externally, never appears in transcripts), and the fact that an un-muxed run would not have paid subagent context re-reads. Both cut in opposite directions; treat every figure as a `~` estimate at list prices.
+Two blind spots worth knowing about. Work done through `muxer:codex` or `muxer:gemini` bills externally and never appears in the transcripts, so it's invisible here. And the un-muxed counterfactual is approximate, because a single-model run wouldn't have paid for subagents re-reading context. Read every figure as a rough number at list prices, not an invoice.
 
 ## Install
 
@@ -63,9 +68,9 @@ claude plugin marketplace add ./muxer
 claude plugin install muxer@muxer-local
 ```
 
-Updating later: pull, bump nothing, just run `claude plugin update muxer@muxer-local`. Plugins are cached copies; repo edits do not take effect until you update, and running sessions keep the old copy until restarted.
+To update later, pull and run `claude plugin update muxer@muxer-local`. Claude Code installs plugins as cached copies, so edits to the repo do nothing until you update, and sessions already running keep the old copy until restarted.
 
-External delegates need their CLIs:
+The external delegates need their CLIs installed and signed in:
 
 ```bash
 npm install -g @openai/codex      # then run `codex` once to sign in (ChatGPT account)
@@ -74,14 +79,16 @@ npm install -g @google/gemini-cli # then run `gemini` once to sign in
 
 ## Tuning
 
-- `MUXER_GUARD=off` — disable the PreToolUse default-model guard.
-- `MUXER_BUILTIN_AGENT_MODEL=<alias>` — change the guard's injected default (default `opus`).
-- `MUXER_REPORT=off` — disable the after-task cost line; `MUXER_REPORT=always` prints it after every turn that spent anything.
-- `MUXER_REPORT_MIN_USD=<n>` — savings threshold for the cost line (default `0.25`).
-- `/mux` — show routing table, cost model, and session economics from inside a session.
+- `MUXER_GUARD=off` turns off the PreToolUse default-model guard.
+- `MUXER_BUILTIN_AGENT_MODEL=<alias>` changes what the guard injects (default `opus`).
+- `MUXER_REPORT=off` silences the after-task cost line. `MUXER_REPORT=always` prints it after every turn that spent anything.
+- `MUXER_REPORT_MIN_USD=<n>` sets the savings threshold for the cost line (default `0.25`).
+- `/mux` shows the routing table, cost model, and session economics from inside a session.
 
 ## Notes and limits
 
-- Routing is advisory for the orchestrator (it chooses which agent to spawn); the hard guarantees are the per-agent `model:` pins and the PreToolUse guard.
-- The orchestrator's own context (including prompt-cache re-reads) always bills at the session model's rate. If a session will be mostly reading and chatting rather than directing, run it on a cheaper model.
-- Billing attribution for subagent models on Max plans is not explicitly documented by Anthropic; the per-model rates above are the API list prices. Watch `/usage` after adopting this to confirm behavior on your plan.
+Routing is advisory for the orchestrator, since it chooses which agent to spawn. The hard guarantees are the per-agent `model:` pins and the PreToolUse guard.
+
+The orchestrator's own context, including prompt-cache re-reads, always bills at the session model's rate. If a session will be mostly reading and chatting rather than directing work, run it on a cheaper model to begin with.
+
+Anthropic doesn't explicitly document how subagent models bill against Max plans, and the per-model rates above are API list prices. Watch `/usage` after adopting this and confirm the behavior on your own plan.
