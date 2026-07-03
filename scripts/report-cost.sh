@@ -106,8 +106,11 @@ fi
 main_fam=$(printf '%s' "$totals" | jq -r .main)
 delegations=$(printf '%s' "$totals" | jq -r .delegations)
 
-# Deltas since last report; decide whether to speak.
-read -r report da dc dsave pct d_fable d_opus d_sonnet d_haiku <<EOF
+# Deltas since last report; decide whether to speak. The state file may have
+# been written by a different plugin version (hook scripts hot-swap into
+# running sessions), so only show the per-model breakdown when its parts
+# actually sum to the total delta.
+read -r report showparts da dc dsave pct d_fable d_opus d_sonnet d_haiku <<EOF
 $(jq -rn --argjson t "$totals" --slurpfile prev "$state_file" \
          --arg min "$min_usd" --arg mode "${MUXER_REPORT:-on}" '
   $prev[0] as $p
@@ -117,9 +120,13 @@ $(jq -rn --argjson t "$totals" --slurpfile prev "$state_file" \
   | (if $dc > 0 then ($ds / $dc * 100 | round) else 0 end) as $pct
   | (($t.delegations > 0)
      and (($ds >= ($min|tonumber)) or ($mode == "always" and $da > 0.005))) as $go
-  | [(if $go then 1 else 0 end), $da, $dc, $ds, $pct,
-     ($t.fable  - ($p.fable  // 0)), ($t.opus  - ($p.opus  // 0)),
-     ($t.sonnet - ($p.sonnet // 0)), ($t.haiku - ($p.haiku // 0))]
+  | ($t.fable  - ($p.fable  // 0)) as $df
+  | ($t.opus   - ($p.opus   // 0)) as $do
+  | ($t.sonnet - ($p.sonnet // 0)) as $dn
+  | ($t.haiku  - ($p.haiku  // 0)) as $dh
+  | (if ((($df+$do+$dn+$dh) - $da) | fabs) <= (0.011 + $da * 0.02)
+     then 1 else 0 end) as $consistent
+  | [(if $go then 1 else 0 end), $consistent, $da, $dc, $ds, $pct, $df, $do, $dn, $dh]
   | @tsv' | tr '\t' ' ')
 EOF
 [ "${report:-0}" = "1" ] || exit 0
@@ -131,10 +138,12 @@ part() {
   p=$(printf '%s $%.2f%s' "$1" "$2" "$3")
   parts="${parts:+$parts + }$p"
 }
-part fable  "$d_fable"  " credits"
-part opus   "$d_opus"   ""
-part sonnet "$d_sonnet" ""
-part haiku  "$d_haiku"  ""
+if [ "${showparts:-0}" = "1" ]; then
+  part fable  "$d_fable"  " credits"
+  part opus   "$d_opus"   ""
+  part sonnet "$d_sonnet" ""
+  part haiku  "$d_haiku"  ""
+fi
 
 da=$(printf '%.2f' "$da"); dc=$(printf '%.2f' "$dc"); dsave=$(printf '%.2f' "$dsave")
 msg="muxer: this stretch cost ~\$${da}"

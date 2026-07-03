@@ -70,7 +70,7 @@ claude plugin marketplace add ./muxer
 claude plugin install muxer@muxer-local
 ```
 
-To update later, pull and run `claude plugin update muxer@muxer-local`. Claude Code installs plugins as cached copies, so edits to the repo do nothing until you update, and sessions already running keep the old copy until restarted.
+To update later, pull and run `claude plugin update muxer@muxer-local`. Claude Code installs plugins as cached copies, so edits to the repo do nothing until you update. One wrinkle worth knowing: agents, skills, and the injected policy load when a session starts, but hook commands resolve the plugin path at the moment they fire, so updated hook scripts take effect in already-running sessions immediately, without their SessionStart hooks ever re-firing. The cost hook is written to survive that (it validates its saved state before using it).
 
 The external delegates need their CLIs installed and signed in:
 
