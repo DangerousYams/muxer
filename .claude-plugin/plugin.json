@@ -1,6 +1,6 @@
 {
   "name": "muxer",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "license": "MIT",
   "description": "Model multiplexer: keep an expensive orchestrator (Fable) but route subagent work to the cheapest model that can do the job (Opus, Sonnet, Haiku, or external models via Codex/Gemini CLIs).",
   "author": {

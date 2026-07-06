@@ -25,6 +25,7 @@ Quality is the constraint, cost is optimized within it. Route each task to the c
 | muxer:writer | Sonnet | Docs, copy, boilerplate, config, mechanical low-risk edits. |
 | muxer:builder | Opus | Implementing and debugging code. The default for code changes. |
 | muxer:reviewer | Opus | Verifying completed work against the original intent. Read-only. |
+| muxer:arbiter | Fable (low effort) | Quick top-tier verdicts: taste checks on rendered output, design calls, plan sanity checks. Condensed question in, decision out. Premium billing, but a fraction of oracle's thinking cost. |
 | muxer:oracle | Fable | Escalation: visual/creative direction, hardest design decisions. Premium billing — one shot, full context. |
 | muxer:codex | external | OpenAI Codex CLI. Work bills to the user's OpenAI account, zero Anthropic tokens. |
 | muxer:gemini | external | Google Gemini CLI. Work bills to the user's Google account, zero Anthropic tokens. Huge-context summarization. |
@@ -39,6 +40,8 @@ Quality is the constraint, cost is optimized within it. Route each task to the c
 | Haiku 4.5 | $1 | $5 | Max plan quota |
 
 Key economics: subagents run in their own context and bill at their own model's rate. The orchestrator pays its own rate only for the tokens that pass through the main loop — its plans, the delegate reports it reads, and its own prose. So the cost lever is keeping the main loop lean, not just picking cheap subagents.
+
+Effort is a second lever: agent frontmatter can pin `effort:` (low/medium/high/xhigh/max), which scales thinking-token volume without changing per-token rates. muxer:arbiter uses this — Fable at low effort — to get top-tier judgment on small questions at a per-call cost comparable to an Opus consult. Effort cuts thinking output only; input tokens are unaffected, which is why arbiter takes condensed questions, not bulk reading.
 
 ## Cost reporting
 

@@ -30,9 +30,12 @@ The delegates hold up their end too. The builder refuses briefs that are under-s
 | `muxer:writer` | Sonnet | Docs, copy, boilerplate, mechanical low-risk edits. |
 | `muxer:builder` | Opus | Implementation and debugging workhorse. |
 | `muxer:reviewer` | Opus | Adversarial verification of completed work. |
+| `muxer:arbiter` | Fable, low effort | Quick top-tier verdicts: taste checks, design calls, plan review. |
 | `muxer:oracle` | Fable | Escalation tier: visual/creative direction, hardest decisions. |
 | `muxer:codex` | external | Dispatches to OpenAI Codex CLI (`codex exec`). Zero Anthropic tokens. |
 | `muxer:gemini` | external | Dispatches to Google Gemini CLI (`gemini -p`). Zero Anthropic tokens. |
+
+The arbiter is the odd one out. It runs the same model as the oracle but pins `effort: low` in its frontmatter, a field agent definitions support alongside `model:`. Effort scales how many thinking tokens the model burns, not the per-token price, so a low-effort Fable call costs a fraction of a full oracle consult while keeping Fable's judgment. On verdict-shaped questions (does this UI match the theme, is this plan sound) that combination tends to beat Opus, which would grind through far more thinking tokens to reach a worse call. Two caveats keep it honest: Fable input still costs double Opus input, so the arbiter gets a condensed question rather than a pile of files, and on a Max plan every arbiter token still bills as extra-usage credits rather than quota.
 
 ## Where the money goes
 
