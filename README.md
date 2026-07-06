@@ -94,3 +94,18 @@ Routing is advisory for the orchestrator, since it chooses which agent to spawn.
 The orchestrator's own context, including prompt-cache re-reads, always bills at the session model's rate. If a session will be mostly reading and chatting rather than directing work, run it on a cheaper model to begin with.
 
 Anthropic doesn't explicitly document how subagent models bill against Max plans, and the per-model rates above are API list prices. Watch `/usage` after adopting this and confirm the behavior on your own plan.
+
+## Tests
+
+A hermetic test suite covers the three hook scripts and the plugin manifests. Run it from the repo root:
+
+```bash
+tests/run.sh            # every suite
+tests/run.sh report     # only suites whose filename matches "report"
+```
+
+The optional argument is a name filter, so `tests/run.sh guard` runs just the guard-model checks. A green run prints `ALL GREEN`.
+
+Dependencies are bash and jq, the same tools the hooks themselves need. The manifest suite additionally runs `claude plugin validate` when the claude CLI is on your PATH, and skips that single check cleanly when it isn't.
+
+The tests never touch your real setup. Every invocation overrides `HOME` to a throwaway directory and strips `MUXER_*` from the environment, so the live `~/.cache/muxer` and your shell config are left alone.
