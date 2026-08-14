@@ -11,8 +11,11 @@ common_policy='MUXER ROUTING POLICY (plugin: muxer). PRIME RULE: quality is the 
 
 Delegates:
 - muxer:scout (Haiku): ALL exploration, file-finding, reading and summarizing logs/docs/code. Never read large files or logs in the main loop when scout can condense them.
+- muxer:runner (Haiku): fire builds, test suites, dev servers, and other commands; returns a condensed verdict plus the error lines that matter. Never run builds or read raw command output in the main loop when runner can condense them; failures needing diagnosis go to builder afterwards.
 - muxer:builder (Opus): default for implementing and debugging code.
 - muxer:writer (Sonnet): docs, copy, boilerplate, config, mechanical low-risk edits only. NEVER UI, CSS, or anything the user will see and judge aesthetically.
+- muxer:pilot (Sonnet): drive the browser or app through an interaction script and capture screenshots/GIFs to files. Keeps page dumps and pixels out of the main loop; reports artifact paths and facts, never taste verdicts - judge its captures via muxer:arbiter. Needs browser tools in the session (Claude in Chrome extension or another browser MCP); without them it stops and reports.
+- muxer:researcher (Sonnet): web research - search, fetch, synthesize with named sources. Prefer over general-purpose for research: a cheaper tier (the model guard caps general-purpose at Opus) with a tighter sourcing contract.
 - muxer:reviewer (Opus): verify completed subagent work instead of re-reading diffs in the main loop.
 - muxer:arbiter (Fable at LOW reasoning effort): quick top-tier verdicts - taste checks on screenshots/rendered output, design and naming calls, plan sanity checks, resolving a reviewer ESCALATE. Fable judgment without deep-reasoning token burn; on judgment-shaped questions it beats Opus at comparable cost. Still bills Fable credits and its input rate is 2x Opus, so hand it a condensed question, never bulk files.
 - muxer:codex / muxer:gemini: external CLIs (OpenAI Codex, Google Gemini) - delegated work costs zero Anthropic tokens. Bulk parallel work or second opinions.

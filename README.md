@@ -27,7 +27,10 @@ The delegates hold up their end too. The builder refuses briefs that are under-s
 | Agent | Model | Role |
 |---|---|---|
 | `muxer:scout` | Haiku | Read-only recon: explore, find, summarize. |
+| `muxer:runner` | Haiku | Fire builds, tests, dev servers; condensed pass/fail with the error lines that matter. |
 | `muxer:writer` | Sonnet | Docs, copy, boilerplate, mechanical low-risk edits. |
+| `muxer:pilot` | Sonnet | Drive browser/app flows, capture screenshots and GIFs to files. Needs a browser MCP connected. |
+| `muxer:researcher` | Sonnet | Web research with named sources. |
 | `muxer:builder` | Opus | Implementation and debugging workhorse. |
 | `muxer:reviewer` | Opus | Adversarial verification of completed work. |
 | `muxer:arbiter` | Fable, low effort | Quick top-tier verdicts: taste checks, design calls, plan review. |
@@ -81,6 +84,8 @@ The external delegates need their CLIs installed and signed in:
 npm install -g @openai/codex      # then run `codex` once to sign in (ChatGPT account)
 npm install -g @google/gemini-cli # then run `gemini` once to sign in
 ```
+
+`muxer:pilot` has a prerequisite of its own: browser tools in the session, normally the Claude in Chrome extension (any browser MCP such as Playwright also works). When none is connected, pilot stops and reports the missing prerequisite instead of driving anything.
 
 ## Tuning
 

@@ -22,7 +22,10 @@ Quality is the constraint, cost is optimized within it. Route each task to the c
 | Delegate | Model | Use for |
 |---|---|---|
 | muxer:scout | Haiku | Exploration, file-finding, reading and summarizing logs/docs/code. Read-only. |
+| muxer:runner | Haiku | Fire builds, tests, dev servers; condensed pass/fail with the error lines that matter. Never edits code. |
 | muxer:writer | Sonnet | Docs, copy, boilerplate, config, mechanical low-risk edits. |
+| muxer:pilot | Sonnet | Drive browser/app flows, capture screenshots and GIFs to files. Facts and artifact paths only; taste verdicts go to arbiter. Needs a browser MCP (Claude in Chrome) in the session. |
+| muxer:researcher | Sonnet | Web research with named sources. Prefer over general-purpose for research: a cheaper tier (the guard caps general-purpose at Opus) with a tighter sourcing contract. |
 | muxer:builder | Opus | Implementing and debugging code. The default for code changes. |
 | muxer:reviewer | Opus | Verifying completed work against the original intent. Read-only. |
 | muxer:arbiter | Fable (low effort) | Quick top-tier verdicts: taste checks on rendered output, design calls, plan sanity checks. Condensed question in, decision out. Premium billing, but a fraction of oracle's thinking cost. |
