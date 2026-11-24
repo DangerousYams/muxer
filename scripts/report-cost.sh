@@ -139,7 +139,7 @@ part() {
   parts="${parts:+$parts + }$p"
 }
 if [ "${showparts:-0}" = "1" ]; then
-  part fable  "$d_fable"  " credits"
+  part fable  "$d_fable"  ""
   part opus   "$d_opus"   ""
   part sonnet "$d_sonnet" ""
   part haiku  "$d_haiku"  ""

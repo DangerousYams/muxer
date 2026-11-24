@@ -1,6 +1,6 @@
 ---
 name: oracle
-description: Escalation to Fable, the most capable model. Bills at premium rates outside the Max plan, so use sparingly and deliberately. Reserve for - visual and creative direction for games and frontends, the hardest architecture or design decisions, deep analysis where an Opus attempt was not good enough. Give it complete context in one shot; do not use it for iteration or routine work.
+description: Escalation to Fable, the most capable model. Its tokens cost 2x Opus at list price, so use sparingly and deliberately. Reserve for - visual and creative direction for games and frontends, the hardest architecture or design decisions, deep analysis where an Opus attempt was not good enough. Give it complete context in one shot; do not use it for iteration or routine work.
 model: fable
 ---
 

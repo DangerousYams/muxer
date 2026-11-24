@@ -85,6 +85,8 @@ assert_contains "report states the actual cost" "muxer: this stretch cost ~\$0.6
 assert_contains "report names the all-fable counterfactual" "all-fable" "$msg"
 assert_contains "report states savings and percent" "Saved ~\$5.40 (89%)" "$msg"
 assert_contains "report breaks out the haiku share" "haiku \$0.60" "$msg"
+assert_contains "report lists the fable share like any other model" "fable \$0.06 + haiku" "$msg"
+assert_not_contains "report makes no claim about plan billing" "credits" "$msg"
 
 # --- 4. a second report with no new spend is silent (state was updated in case 3) ---
 assert_silent "second report with no new spend stays silent" "$(report s34 "$tmp/big.jsonl")"

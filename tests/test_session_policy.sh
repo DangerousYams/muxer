@@ -14,14 +14,20 @@ assert_jq "fable session targets SessionStart" '.hookSpecificOutput.hookEventNam
 ctx=$(printf '%s' "$out" | jq -r '.hookSpecificOutput.additionalContext')
 assert_contains "fable policy carries the routing header" "MUXER ROUTING POLICY" "$ctx"
 assert_contains "fable policy names the never-delegate list" "NEVER DELEGATE" "$ctx"
-assert_not_contains "fable policy has no oracle escalation bullet" "muxer:oracle (Fable, premium billing)" "$ctx"
+assert_not_contains "fable policy has no oracle escalation bullet" "muxer:oracle (Fable, 2x Opus per token)" "$ctx"
+assert_contains "fable policy calls Fable the most expensive model per token" "most expensive model per token" "$ctx"
+assert_not_contains "fable policy does not say Fable bills as credits" "credits" "$ctx"
+assert_not_contains "fable policy makes no Max-plan billing claim" "Max" "$ctx"
+assert_not_contains "fable policy makes no plan-quota claim" "plan quota" "$ctx"
 
 # --- cheaper session: common policy plus the oracle escalation path ---
 out=$(printf '{"model":"claude-opus-4-8","session_id":"t"}' | "$S")
 assert_valid_json "opus session emits valid JSON" "$out"
 ctx=$(printf '%s' "$out" | jq -r '.hookSpecificOutput.additionalContext')
 assert_contains "opus policy carries the routing header" "MUXER ROUTING POLICY" "$ctx"
-assert_contains "opus policy adds the oracle escalation bullet" "muxer:oracle (Fable, premium billing)" "$ctx"
+assert_contains "opus policy adds the oracle escalation bullet" "muxer:oracle (Fable, 2x Opus per token)" "$ctx"
+assert_not_contains "opus policy does not say Fable bills as credits" "credits" "$ctx"
+assert_not_contains "opus policy makes no Max-plan billing claim" "Max" "$ctx"
 assert_not_contains "opus policy omits the never-delegate list" "NEVER DELEGATE" "$ctx"
 
 # --- muxer:neon bullet appears only when the agy CLI is on PATH ---

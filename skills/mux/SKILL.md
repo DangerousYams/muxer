@@ -9,7 +9,7 @@ argument-hint: "[question about routing or cost]"
 
 When invoked, do the following:
 
-1. State which model this session's main loop runs on (you know your own model) and what that implies: Fable main loop = premium extra-usage billing, so delegation matters most; Opus or below = Max-plan quota, delegation still saves quota but the stakes are lower.
+1. State which model this session's main loop runs on (you know your own model) and what that implies: Fable main loop = the most expensive tokens (2x Opus at list price), so delegation matters most; Opus or below = a cheaper main loop, where delegation still saves but the stakes are lower. muxer only knows API list prices: make no claim about how a subscription plan counts any model's usage, and point the user at `/usage` for that.
 2. Print the routing table and cost table below, then answer the user's question (the skill argument) if one was given.
 3. Keep it brief and factual. No advice they didn't ask for.
 
@@ -28,20 +28,20 @@ Quality is the constraint, cost is optimized within it. Route each task to the c
 | muxer:researcher | Sonnet | Web research with named sources. Prefer over general-purpose for research: a cheaper tier (the guard caps general-purpose at Opus) with a tighter sourcing contract. |
 | muxer:builder | Opus | Implementing and debugging code. The default for code changes. |
 | muxer:reviewer | Opus | Verifying completed work against the original intent. Read-only. |
-| muxer:arbiter | Fable (low effort) | Quick top-tier verdicts: taste checks on rendered output, design calls, plan sanity checks. Condensed question in, decision out. Premium billing, but a fraction of oracle's thinking cost. |
-| muxer:oracle | Fable | Escalation: visual/creative direction, hardest design decisions. Premium billing — one shot, full context. |
+| muxer:arbiter | Fable (low effort) | Quick top-tier verdicts: taste checks on rendered output, design calls, plan sanity checks. Condensed question in, decision out. Billed at the Fable rate, but a fraction of oracle's thinking cost. |
+| muxer:oracle | Fable | Escalation: visual/creative direction, hardest design decisions. Billed at the Fable rate, so one shot with full context. |
 | muxer:codex | external | OpenAI Codex CLI. Work bills to the user's OpenAI account, zero Anthropic tokens. |
 | muxer:gemini | external | Google Gemini CLI. Work bills to the user's Google account, zero Anthropic tokens. Huge-context summarization. |
 | muxer:neon | Opus + external | User-facing product prose. Gemini Neon writes it through the agy CLI; an Opus checker verifies facts, limits, and placeholders against the brief and sends those defects back to Neon. It has no say on style and never rewrites the wording. Returns a keyed copy map. Listed in the policy only when agy is on PATH. |
 
 ## Cost table (API list prices per 1M tokens, in/out)
 
-| Model | Input | Output | Billing on a Max plan |
-|---|---|---|---|
-| Fable 5 | $10 | $50 | Extra usage credits (outside Max plan) |
-| Opus 4.8 | $5 | $25 | Max plan quota |
-| Sonnet 5 | $3 | $15 | Max plan quota |
-| Haiku 4.5 | $1 | $5 | Max plan quota |
+| Model | Input | Output |
+|---|---|---|
+| Fable 5 | $10 | $50 |
+| Opus 4.8 | $5 | $25 |
+| Sonnet 5 | $3 | $15 |
+| Haiku 4.5 | $1 | $5 |
 
 Key economics: subagents run in their own context and bill at their own model's rate. The orchestrator pays its own rate only for the tokens that pass through the main loop — its plans, the delegate reports it reads, and its own prose. So the cost lever is keeping the main loop lean, not just picking cheap subagents.
 
@@ -49,8 +49,8 @@ Effort is a second lever: agent frontmatter can pin `effort:` (low/medium/high/x
 
 ## Cost reporting
 
-- Before: for sizable multiplexed tasks (3+ delegations or one large one), the orchestrator states a one-line $ estimate up front (tiers, rough range, Fable-credits share). It is an estimate; actuals come from the hook below.
-- After: a Stop hook parses the session and subagent transcripts, prices every turn at API list rates (cache-aware), and prints one line comparing actual spend (broken down by model, Fable tagged as extra-usage credits) to the un-muxed all-main-model cost. It stays silent until accumulated savings since the last report cross the threshold, so small turns don't spam. A SessionStart baseline keeps resumed sessions from billing their whole history to the first report.
+- Before: for sizable multiplexed tasks (3+ delegations or one large one), the orchestrator states a one-line $ estimate up front (tiers, rough range, Fable share). It is an estimate; actuals come from the hook below.
+- After: a Stop hook parses the session and subagent transcripts, prices every turn at API list rates (cache-aware), and prints one line comparing actual spend (broken down by model) to the un-muxed all-main-model cost. It stays silent until accumulated savings since the last report cross the threshold, so small turns don't spam. A SessionStart baseline keeps resumed sessions from billing their whole history to the first report.
 - Not counted: muxer:codex / muxer:gemini work and the Neon side of muxer:neon (external billing, invisible to transcripts) and the token overhead the un-muxed counterfactual would not have had (subagents re-read context). Figures are estimates at list prices, marked with `~`.
 
 ## Tuning
@@ -59,5 +59,5 @@ Effort is a second lever: agent frontmatter can pin `effort:` (low/medium/high/x
 - `MUXER_BUILTIN_AGENT_MODEL=<alias>` — change that default (default: opus, erring toward quality).
 - `MUXER_REPORT=off` — disable the after-task cost line. `MUXER_REPORT=always` — print it after every turn that spent anything, ignoring the threshold.
 - `MUXER_REPORT_MIN_USD=<n>` — savings threshold that triggers a report (default 0.25).
-- Mode A (what this plugin is tuned for): run the session on Fable (`/model fable`), delegate everything. Preserves Fable's orchestration, planning, and persistence; premium billing applies to the main loop only.
-- Mode B (max savings): run the session on Opus (`/model opus`), escalate selectively to muxer:oracle. Fable billing applies only to oracle calls.
+- Mode A (what this plugin is tuned for): run the session on Fable (`/model fable`), delegate everything. Preserves Fable's orchestration, planning, and persistence; the Fable rate applies to the main loop only.
+- Mode B (max savings): run the session on Opus (`/model opus`), escalate selectively to muxer:oracle, or to muxer:arbiter for a quick verdict. The Fable rate applies only to those calls.

@@ -2,7 +2,7 @@
 
 `muxer` is a Claude Code plugin that lets an expensive model run the session while cheaper models handle most of the actual work.
 
-I built it because I want Fable planning my work and judging the results, while on a Max plan Fable bills as extra usage credits with no ceiling. Most of what happens during a coding session, such as searching files or reading logs, does not need the priciest model in the catalog. `muxer` keeps Fable on the main session loop and routes execution to Opus, Sonnet, and Haiku, or to OpenAI Codex and Google Gemini through their CLIs. A third external route sends work to Gemini Neon through the `agy` CLI, used only for user-facing product prose.
+I built it because I want Fable planning my work and judging the results, yet Fable costs 2x Opus per token. Most of what happens during a coding session, such as searching files or reading logs, does not need the priciest model in the catalog. `muxer` keeps Fable on the main session loop and routes execution to Opus, Sonnet, and Haiku, or to OpenAI Codex and Google Gemini through their CLIs. A third external route sends work to Gemini Neon through the `agy` CLI, used only for user-facing product prose.
 
 ## Routing mechanisms
 
@@ -16,22 +16,22 @@ Claude Code picks a model for a subtask at the moment the orchestrator spawns it
 
 You can run `muxer` in 2 modes depending on how much you want to spend on the main loop.
 
-**Mode A (Fable session):** I tuned the plugin for this setup. Start the session with `/model fable` and let Fable orchestrate. You keep Fable's planning and visual taste, along with its habit of staying with a job until it is actually done, while premium billing applies only to the lean main loop.
+**Mode A (Fable session):** I tuned the plugin for this setup. Start the session with `/model fable` and let Fable orchestrate. You keep Fable's planning and visual taste, along with its habit of staying with a job until it is actually done, while Fable's per-token rate applies only to the lean main loop.
 
-**Mode B (Opus session):** For maximum savings, run the main loop on Opus with `/model opus`. Consult Fable when a task genuinely needs it, starting with `muxer:arbiter` when a quick verdict is all you need and escalating to `muxer:oracle` for deep work such as creative direction or a hard design call. Main-loop tokens cost roughly half as much and stay on plan quota.
+**Mode B (Opus session):** For maximum savings, run the main loop on Opus with `/model opus`. Consult Fable when a task genuinely needs it, starting with `muxer:arbiter` when a quick verdict is all you need and escalating to `muxer:oracle` for deep work such as creative direction or a hard design call. Main-loop tokens cost half as much at list price.
 
 ## Pricing and subagent billing
 
-These are Anthropic's API list prices per 1M tokens alongside how each model bills on a Max plan:
+These are Anthropic's API list prices per 1M tokens:
 
-| Model | List price per 1M tokens (in/out) | Max-plan billing |
-|---|---|---|
-| Fable | $10/$50 | Extra usage credits |
-| Opus | $5/$25 | Plan quota |
-| Sonnet | $3/$15 | Plan quota |
-| Haiku | $1/$5 | Plan quota |
+| Model | List price per 1M tokens (in/out) |
+|---|---|
+| Fable | $10/$50 |
+| Opus | $5/$25 |
+| Sonnet | $3/$15 |
+| Haiku | $1/$5 |
 
-Every token moved off Fable turns open-ended credit spend into plan quota. Work routed to Codex or Gemini leaves the Anthropic bill altogether, and the same applies to the Gemini Neon generation step of `muxer:neon` (its Opus verification pass still bills on Anthropic).
+Fable is the most expensive model at 2x Opus per token ($10/$50 against $5/$25), so at list prices moving tokens off Fable brings an Opus token to 50% of Fable's cost, with Sonnet at 30% and Haiku at 10%. Work routed to Codex or Gemini leaves the Anthropic bill altogether, and the same applies to the Gemini Neon generation step of `muxer:neon` (its Opus verification pass still bills on Anthropic).
 
 Subagents run in their own context windows and bill at their own model's rate. The orchestrator pays its session rate only for what enters the main loop: its plans and replies to you, plus the reports delegates send back. To keep main-loop spend low, the orchestrator has to both delegate work and avoid reading raw material directly. `muxer:scout` handles that by condensing something like 50k tokens of logs into a 300-word report before anything reaches the Fable loop. `muxer:reviewer` applies the same idea to review, reading diffs on Opus so the main loop does not re-read them at premium rates.
 
@@ -70,7 +70,7 @@ The delegates enforce quality on their side as well. `muxer:builder` refuses bri
 
 `muxer:arbiter` runs the same Fable model as `muxer:oracle`, paired with `effort: low` in its frontmatter (a field agent definitions support alongside `model:`). The `effort` setting scales how many thinking tokens the model spends while leaving per-token rates unchanged, so a low-effort Fable call costs a fraction of a full `muxer:oracle` consultation and keeps Fable's judgment. On verdict-shaped questions, such as checking whether a UI matches a theme or whether a plan is sound, low-effort Fable tends to beat Opus, which uses far more thinking tokens to reach a worse call.
 
-Fable input still costs double Opus input ($10 vs $5 per 1M tokens), so `muxer:arbiter` should receive a condensed question instead of a pile of files. On a Max plan, every arbiter token also continues to bill as extra usage credits instead of plan quota.
+Fable input still costs double Opus input ($10 vs $5 per 1M tokens), so `muxer:arbiter` should receive a condensed question instead of a pile of files.
 
 ### muxer:neon
 
@@ -82,9 +82,9 @@ A string that fails verification returns to Neon in the same conversation with t
 
 `muxer` gives you a pre-task estimate from the orchestrator and a measured receipt from a `Stop` hook afterward.
 
-Before starting any sizable multiplexed task, the injected policy instructs the orchestrator to print a single-line estimate with a rough list-price dollar range for the whole task, stating both which tiers will do what and how much of that total is Fable credits. That estimate is labeled as a guess, since no hook can know a task's size before the work runs.
+Before starting any sizable multiplexed task, the injected policy instructs the orchestrator to print a single-line estimate with a rough list-price dollar range for the whole task, stating both which tiers will do what and how much of that total is Fable. That estimate is labeled as a guess, since no hook can know a task's size before the work runs.
 
-After work finishes, a `Stop` hook runs `scripts/report-cost.sh` with no argument to compute the receipt. It parses the session transcript along with every subagent transcript and deduplicates rows that Claude Code writes repeatedly while streaming. Each turn is then priced at API list rates with cache multipliers applied (cache reads at 0.1x the input rate, 5-minute cache writes at 1.25x, and 1-hour cache writes at 2x). The hook prints one line breaking actual spend down by model, with the Fable share tagged as extra-usage credits, against the counterfactual where every token ran on the session's main model. It stays silent until savings accumulated since its last report cross `MUXER_REPORT_MIN_USD` (default `$0.25`), so small turns do not clutter the output.
+After work finishes, a `Stop` hook runs `scripts/report-cost.sh` with no argument to compute the receipt. It parses the session transcript along with every subagent transcript and deduplicates rows that Claude Code writes repeatedly while streaming. Each turn is then priced at API list rates with cache multipliers applied (cache reads at 0.1x the input rate, 5-minute cache writes at 1.25x, and 1-hour cache writes at 2x). The hook prints one line breaking actual spend down by model against the counterfactual where every token ran on the session's main model. It stays silent until savings accumulated since its last report cross `MUXER_REPORT_MIN_USD` (default `$0.25`), so small turns do not clutter the output.
 
 ```
 muxer: this stretch cost ~$1.25 (opus $0.58 + haiku $0.68) vs ~$3.95 all-opus. Saved ~$2.70 (68%).
@@ -139,7 +139,7 @@ Inside a session, `/mux` shows the routing table along with the cost model and s
 
 - Routing is advisory for the orchestrator, since it chooses which agent to spawn. The hard guarantees are the per-agent `model:` pins and the PreToolUse guard.
 - The orchestrator's own context, including prompt-cache re-reads, always bills at the session model's rate. If a session will be mostly reading and chatting instead of directing work, run it on a cheaper model from the start.
-- Anthropic does not explicitly document how subagent models bill against Max plans, and the per-model rates above are API list prices. Watch `/usage` after adopting `muxer` to confirm the behavior on your own plan.
+- `muxer` prices everything at API list rates and does not know how a subscription plan counts usage. If you are on a plan, watch `/usage` to see the effect on your own plan.
 
 ## Tests
 
