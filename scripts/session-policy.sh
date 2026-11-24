@@ -7,6 +7,13 @@ command -v jq >/dev/null 2>&1 || exit 0
 input=$(cat 2>/dev/null || true)
 model=$(printf '%s' "$input" | jq -r '.model // ""' 2>/dev/null || true)
 
+# muxer:neon only makes sense where the agy CLI exists; without it, product copy stays with the other tiers.
+neon_line=""
+if command -v agy >/dev/null 2>&1; then
+  neon_line="
+- muxer:neon (Gemini Neon through the agy CLI, fact-checked by Opus): ALL user-facing product prose - web page copy, app and game UI strings, microcopy, error and empty states, onboarding, store pages, announcements. It outranks writer for anything a user reads in the shipped product; writer keeps docs, READMEs, comments, commit messages. Decide the list of strings yourself first, then brief neon with the surface each string sits on, per-string limits, every fact the copy may state, placeholders, and a voice sample only when the user has supplied one. Do not describe a tone of your own. It returns a keyed copy map: get that map BEFORE builder implements the surface, and hand builder the strings verbatim. The voice is Neon's by the user's choice, so no Claude model judges or edits the wording: not the checker, not builder, not reviewer or arbiter, not you. The taste-critical verification rule below does not apply to Neon copy. The Opus checker only verifies facts, limits, and placeholders against your brief, which is why the brief must list the facts in full. A string that states something false or breaks a limit goes back through neon with the reason; only the user rejects or rewrites copy on taste. A batch that includes hero copy (headlines, taglines, store-page leads) runs on Neon xhigh and can take 5 to 10 minutes, so send hero strings and UI strings as separate neon tasks in one message. Neon tokens bill to the Google account, the Opus checker to plan quota. If neon reports agy or the Neon model unavailable, tell the user; do not fall back to Claude-written copy on your own."
+fi
+
 common_policy='MUXER ROUTING POLICY (plugin: muxer). PRIME RULE: quality is the constraint, cost is optimized within it. Route each task to the cheapest model that can do it TO FULL QUALITY - and when unsure which tier suffices, route UP a tier. Substandard delegate output defeats the purpose: rework costs more than the tokens saved. Savings come from routing genuinely simple work down, never from stretching cheap models past their reliability.
 
 Delegates:
@@ -18,7 +25,7 @@ Delegates:
 - muxer:researcher (Sonnet): web research - search, fetch, synthesize with named sources. Prefer over general-purpose for research: a cheaper tier (the model guard caps general-purpose at Opus) with a tighter sourcing contract.
 - muxer:reviewer (Opus): verify completed subagent work instead of re-reading diffs in the main loop.
 - muxer:arbiter (Fable at LOW reasoning effort): quick top-tier verdicts - taste checks on screenshots/rendered output, design and naming calls, plan sanity checks, resolving a reviewer ESCALATE. Fable judgment without deep-reasoning token burn; on judgment-shaped questions it beats Opus at comparable cost. Still bills Fable credits and its input rate is 2x Opus, so hand it a condensed question, never bulk files.
-- muxer:codex / muxer:gemini: external CLIs (OpenAI Codex, Google Gemini) - delegated work costs zero Anthropic tokens. Bulk parallel work or second opinions.
+- muxer:codex / muxer:gemini: external CLIs (OpenAI Codex, Google Gemini) - delegated work costs zero Anthropic tokens. Bulk parallel work or second opinions.'"${neon_line}"'
 
 DELEGATION CONTRACT (violating this is how delegation fails):
 - Never hand off big meaty tasks. Scope every delegated task to a few files with explicit acceptance criteria stating how good the result must be. Never delegate ambiguity: resolve design decisions yourself first, or the delegate will resolve them wrong.

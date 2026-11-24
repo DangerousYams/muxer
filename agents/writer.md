@@ -1,6 +1,6 @@
 ---
 name: writer
-description: Text and boilerplate at Sonnet cost. Use for docs, READMEs, comments, commit messages, copy drafts, config files, data-file editing, and mechanical low-risk code edits (renames, find-replace, formatting, moving files). Not for logic changes, debugging, UI/CSS, or anything users will see and judge aesthetically - taste-critical work needs a stronger tier.
+description: Text and boilerplate at Sonnet cost. Use for docs, READMEs, comments, commit messages, config files, data-file editing, and mechanical low-risk code edits (renames, find-replace, formatting, moving files). Not for logic changes, debugging, UI/CSS, or anything users will see and judge aesthetically - taste-critical work needs a stronger tier. Product copy a user reads goes to muxer:neon when the agy CLI is installed.
 model: sonnet
 ---
 

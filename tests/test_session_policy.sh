@@ -24,6 +24,25 @@ assert_contains "opus policy carries the routing header" "MUXER ROUTING POLICY" 
 assert_contains "opus policy adds the oracle escalation bullet" "muxer:oracle (Fable, premium billing)" "$ctx"
 assert_not_contains "opus policy omits the never-delegate list" "NEVER DELEGATE" "$ctx"
 
+# --- muxer:neon bullet appears only when the agy CLI is on PATH ---
+stub=$(mktemp -d)
+mkdir -p "$stub/with" "$stub/without"
+ln -s "$(command -v jq)" "$stub/with/jq"
+ln -s "$(command -v jq)" "$stub/without/jq"
+printf '#!/bin/sh\nexit 0\n' > "$stub/with/agy"
+chmod +x "$stub/with/agy"
+out=$(printf '{"model":"claude-fable-5","session_id":"t"}' | PATH="$stub/with:/usr/bin:/bin" "$S")
+assert_valid_json "policy with agy emits valid JSON" "$out"
+ctx=$(printf '%s' "$out" | jq -r '.hookSpecificOutput.additionalContext')
+assert_contains "policy routes product prose to neon when agy exists" "muxer:neon (Gemini Neon through the agy CLI" "$ctx"
+assert_contains "neon bullet sits inside the delegate list" "DELEGATION CONTRACT" "${ctx#*muxer:neon}"
+out=$(printf '{"model":"claude-fable-5","session_id":"t"}' | PATH="$stub/without:/usr/bin:/bin" "$S")
+assert_valid_json "policy without agy emits valid JSON" "$out"
+ctx=$(printf '%s' "$out" | jq -r '.hookSpecificOutput.additionalContext')
+assert_not_contains "policy omits neon when agy is missing" "muxer:neon" "$ctx"
+assert_contains "policy without agy keeps the delegation contract" "DELEGATION CONTRACT" "$ctx"
+rm -rf "$stub"
+
 # --- resilience ---
 out=$(echo 'not json at all' | "$S"; echo "rc=$?")
 assert_contains "garbage input exits 0" "rc=0" "$out"

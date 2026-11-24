@@ -32,6 +32,7 @@ Quality is the constraint, cost is optimized within it. Route each task to the c
 | muxer:oracle | Fable | Escalation: visual/creative direction, hardest design decisions. Premium billing — one shot, full context. |
 | muxer:codex | external | OpenAI Codex CLI. Work bills to the user's OpenAI account, zero Anthropic tokens. |
 | muxer:gemini | external | Google Gemini CLI. Work bills to the user's Google account, zero Anthropic tokens. Huge-context summarization. |
+| muxer:neon | Opus + external | User-facing product prose. Gemini Neon writes it through the agy CLI; an Opus checker verifies facts, limits, and placeholders against the brief and sends those defects back to Neon. It has no say on style and never rewrites the wording. Returns a keyed copy map. Listed in the policy only when agy is on PATH. |
 
 ## Cost table (API list prices per 1M tokens, in/out)
 
@@ -50,7 +51,7 @@ Effort is a second lever: agent frontmatter can pin `effort:` (low/medium/high/x
 
 - Before: for sizable multiplexed tasks (3+ delegations or one large one), the orchestrator states a one-line $ estimate up front (tiers, rough range, Fable-credits share). It is an estimate; actuals come from the hook below.
 - After: a Stop hook parses the session and subagent transcripts, prices every turn at API list rates (cache-aware), and prints one line comparing actual spend (broken down by model, Fable tagged as extra-usage credits) to the un-muxed all-main-model cost. It stays silent until accumulated savings since the last report cross the threshold, so small turns don't spam. A SessionStart baseline keeps resumed sessions from billing their whole history to the first report.
-- Not counted: muxer:codex / muxer:gemini work (external billing, invisible to transcripts) and the token overhead the un-muxed counterfactual would not have had (subagents re-read context). Figures are estimates at list prices, marked with `~`.
+- Not counted: muxer:codex / muxer:gemini work and the Neon side of muxer:neon (external billing, invisible to transcripts) and the token overhead the un-muxed counterfactual would not have had (subagents re-read context). Figures are estimates at list prices, marked with `~`.
 
 ## Tuning
 
